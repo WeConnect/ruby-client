@@ -1,5 +1,6 @@
 module SplitIoClient
   class SplitFactory
+    ROOT_PROCESS_ID = Process.pid
     include SplitIoClient::Cache::Repositories
     include SplitIoClient::Cache::Stores
 
@@ -26,6 +27,16 @@ module SplitIoClient
       @manager = SplitManager.new(@api_key, @adapter, @splits_repository)
 
       @sdk_blocker.block if SplitIoClient.configuration.block_until_ready > 0
+      at_exit do
+        unless ENV['SPLITCLIENT_ENV'] == 'test'
+          if (Process.pid == ROOT_PROCESS_ID)
+            SplitIoClient.configuration.logger.info('Split SDK shutdown started...')
+            @client.destroy
+            stop!
+            SplitIoClient.configuration.logger.info('Split SDK shutdown complete')
+          end
+        end
+      end
     end
 
     def start!
